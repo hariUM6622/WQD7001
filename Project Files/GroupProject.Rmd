@@ -1,0 +1,189 @@
+---
+title: "WQD7001 Group Assignment"
+author: "Group TUFL"
+date: "12/26/2020"
+output: word_document
+---
+
+First round of data cleaning. Each team members has collected SDH related dataset from different source. 
+
+Health Expenditure
+```{r}
+library("tabulizer")
+library("dplyr")
+HealthExpenditure <- read.csv('WIP/Health_Exp.csv')
+HealthExpenditure[HealthExpenditure==""] <- NA
+HealthExpenditure <- HealthExpenditure[c(-1,-2,-3),] #remove 1st 3 inrelevant rows
+
+colnames(HealthExpenditure)  <- HealthExpenditure[1,] #rename columns
+
+HealthExpenditure <- HealthExpenditure[-1,c(-1,-3)]
+
+#mean year >2015
+HealthExpenditure <- HealthExpenditure %>% mutate(ExpenditureMean = rowMeans(HealthExpenditure[,10:11], na.rm = TRUE, dims = 1))
+HealthExpenditure <- HealthExpenditure %>% mutate(sum_exp = rowSums(HealthExpenditure[,10:11], na.rm = TRUE, dims = 1))
+HealthExpenditure %>% filter(sum_exp>0 && is.nan(ExpenditureMean))  #to check if there is any country with data in any of the year in the range
+#HealthExpenditure <- select(HealthExpenditure, -sum_exp)
+
+HealthExpenditure <- na.omit(HealthExpenditure)
+HealthExpenditure <- HealthExpenditure %>% mutate(ExpenditureLatest = HealthExpenditure[,11])
+HealthExpenditure %>% filter(ExpenditureLatest==0)  #to check if there is any country with data in any of the year in the range
+#HealthExpenditure <- HealthExpenditure[,-HealthExpenditure$sum_exp]
+HealthExpenditure<-HealthExpenditure[,c(1,10:12,14)]
+write.csv(HealthExpenditure,"Cleaned/HealthExpenditure_2020.csv",row.names = TRUE)
+```
+
+
+
+```{r}
+library(tidyr)
+library(dplyr)
+Doctors <- read.csv('WIP/NumbersDoc.csv')
+Doctors <- Doctors %>% 
+  filter(TIME>2015) %>% 
+  select(LOCATION,TIME,Value) %>%  
+  spread(TIME,Value) 
+Doctors <- Doctors %>% mutate(DoctorMean = rowMeans(Doctors[,2:5], na.rm = TRUE, dims = 1))
+Doctors <- Doctors %>% mutate(DoctorLatest=ifelse(!is.na(Doctors[,5]), Doctors[,5],
+                                     ifelse(!is.na(Doctors[,4]), Doctors[,4],
+                                            ifelse(!is.na(Doctors[,3]), Doctors[,3],
+                                                   ifelse(!is.na(Doctors[,2]), Doctors[,2], NA)))))
+  
+write.csv(Doctors,"Cleaned/Doctors_2016_2019.csv")
+
+
+Nurses <- read.csv('WIP/NumbersNurse.csv')
+Nurses <- Nurses %>% 
+  filter(TIME>2015) %>% 
+  select(LOCATION,TIME,Value) %>%  
+  spread(TIME,Value) 
+Nurses <- Nurses %>% mutate(NurseMean = rowMeans(Nurses[,2:5], na.rm = TRUE, dims = 1))
+Nurses <- Nurses %>% mutate(NurseLatest=ifelse(!is.na(Nurses[,5]), Nurses[,5],
+                                            ifelse(!is.na(Nurses[,4]), Nurses[,4],
+                                                   ifelse(!is.na(Nurses[,3]), Nurses[,3],
+                                                          ifelse(!is.na(Nurses[,2]), Nurses[,2], NA)))))
+write.csv(Nurses,"Cleaned/Nurses_2016_2019.csv", row.names = FALSE)
+
+
+
+Nurses2 <- read.csv('WIP/S_NursesAndMidwives.csv')
+Nurses2 <- Nurses2 %>% mutate(Nurse2Mean = rowMeans(Nurses2[,2:5], na.rm = TRUE, dims = 1))
+Nurses2 <- Nurses2[complete.cases(Nurses2[, "Nurse2Mean"]),]
+
+Nurses2 <- Nurses2 %>% mutate(Nurse2_Latest=ifelse(!is.na(Nurses2[,5]), Nurses2[,5],
+                                          ifelse(!is.na(Nurses2[,4]), Nurses2[,4],
+                                                 ifelse(!is.na(Nurses2[,3]), Nurses2[,3],
+                                                        ifelse(!is.na(Nurses2[,2]), Nurses2[,2], NA)))))
+write.csv(Nurses2,"Cleaned/S_Nurses_2016_2019.csv", row.names = FALSE)
+
+Physicians <- read.csv('WIP/S_Physicians.csv')
+Physicians <- Physicians %>% mutate(PhysicianMean = rowMeans(Physicians[,2:5], na.rm = TRUE, dims = 1))
+Physicians <- Physicians[complete.cases(Physicians[, "PhysicianMean"]),]
+
+Physicians <- Physicians %>% mutate(PhysicianLatest=ifelse(!is.na(Physicians[,5]), Physicians[,5],
+                                            ifelse(!is.na(Physicians[,4]), Physicians[,4],
+                                                   ifelse(!is.na(Physicians[,3]), Physicians[,3],
+                                                          ifelse(!is.na(Physicians[,2]), Physicians[,2], NA)))))
+write.csv(Physicians,"Cleaned/S_Physicians_2016_2019.csv", row.names = FALSE)
+
+DF_Merged=merge(Nurses2,Physicians,by=1,all=TRUE)
+DF_Merged=merge(DF_Merged,Nurses,by=1,all=TRUE)
+DF_Merged=merge(DF_Merged,Doctors,by=1,all=TRUE)
+
+```
+Health Ranking
+```{r}
+library("tabulizer")
+library("dplyr")
+
+# Location of pdf file
+location <- '191CountriesTables.pdf' #Source from WHO:https://www.who.int/healthinfo/paper30.pdf
+out <- extract_tables(location)
+
+str(out)
+page1 <- out[[1]]
+page1 <- data.frame(page1[,c(1,3,4)])
+colnames(page1)  <- c("Rank", "Country_Name","Index")
+
+page2 <- out[[2]]
+page2 <- data.frame(page2[,c(1,5,6)])
+colnames(page2)  <- c("Rank", "Country_Name","Index")
+
+page3 <- out[[3]]
+page3 <- data.frame(page3[,c(1,5,6)])
+colnames(page3)  <- c("Rank", "Country_Name","Index")
+
+page4 <- out[[4]]
+page4 <- data.frame(page4[,c(1,5,6)])
+colnames(page4)  <- c("Rank", "Country_Name","Index")
+
+Ranking191 <- dplyr::bind_rows(page1,page2,page3,page4)
+Ranking191[Ranking191==""] <- NA
+Ranking191 <- na.omit(Ranking191)
+Ranking191 <- Ranking191[-1,]
+Ranking191[,"Country_Name"] = toupper(Ranking191[,"Country_Name"])
+Ranking191
+write.csv(Ranking191,"HealthCareRanking_2020.csv",row.names = FALSE)
+
+
+```
+Doctors, Nurses
+```{r}
+library(dplyr)
+HospitalBed <- read.csv('WIP/hospital_beds_global_v1.csv') #https://www.kaggle.com/ikiulian/global-hospital-beds-capacity-for-covid19?select=hospital_beds_global_v1.csv
+
+HospitalBedByType <- HospitalBed %>% filter(year>2015) #retrieve last 5 years data only
+HospitalBed[,c(-4,-5)]
+#spread dataset by bed type
+HospitalBedByType <- HospitalBedByType %>% spread(type,beds) %>% select(Country_Code,ACUTE,ICU,OTHER,PSYCHIATRIC,TOTAL) %>% group_by(Country_Code)
+colSums(is.na(HospitalBedByType)) #remove type OTHER 77/78 obs is NA
+HospitalBedByType[,-4]
+write.csv(HospitalBedByType,"Cleaned/HospitalBedByType_2016_2020.csv",row.names = TRUE)
+
+
+#total per 1000 inhabitants
+dfTotal <- HospitalBed %>% filter(HospitalBed$type=='TOTAL')
+dfTotal <- dfTotal[,-2]
+
+dfICU <- HospitalBed %>% filter(HospitalBed$type=='ICU')
+dfICU <- dfICU[,-2]
+
+dfAcute <- HospitalBed %>% filter(HospitalBed$type=='ACUTE')
+dfAcute <- dfAcute[,-2]
+
+dfPsychiatric <- HospitalBed %>% filter(HospitalBed$type=='PSYCHIATRIC')
+dfPsychiatric <- dfPsychiatric[,-2]
+
+dfOther <- HospitalBed %>% filter(HospitalBed$type=='OTHER')
+dfOther <- dfOther[,-2]
+
+```
+
+Covid Test
+```{r}
+CovidTest <- read.csv('WIP/full-list-cumulative-total-tests-per-thousand-map.csv')
+
+#spread dataset by test type
+
+CovidTest <- CovidTest %>% 
+  group_by(Code,Annotations) %>% 
+  summarise(SumTest = sum(TestNo)) 
+
+CovidTest <- CovidTest %>% spread(Annotations,SumTest) 
+
+```
+
+```{r}
+DFMerged <- read.csv('WIP/World_Code3_Name.csv')
+DFMerged <- merge(DFMerged,DF_Merged,by=1,all=TRUE)
+DFMerged <- merge(DFMerged,HealthExpenditure,by=1,all=TRUE)
+DFMerged <- merge(DFMerged,HospitalBedByType,by=1,all=TRUE)
+
+Ranking2020 <- read.csv('Cleaned/HealthCareRanking_2020.csv')
+DFMerged <- merge(DFMerged,Ranking2020,by=1,all=TRUE)
+DFMerged <- merge(DFMerged,CovidTest,by=1,all=TRUE)
+write.csv(DFMerged,"Cleaned/LW_Datasets_Merged.csv")
+
+```
+
+

@@ -1,0 +1,364 @@
+---
+title: "Data Consolidation and Cleaning"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+{r setup, include=FALSE}
+
+## Data Cleaning and Consolidation
+
+## There were 2 rounds of data cleaning and consolidation involved. First round happened when each members have prepared and cleaned each individual ##datasets for each domain. After the cleaned dataset was passed on to other group members, some follow-up for data cleaning and consolidation was ##done. 
+
+
+# 1. Read Libraries
+```{r}
+library("readxl")
+library(tidyverse)
+library(dplyr)
+```
+
+
+# 2. Load all datasets 
+
+Education 
+```{r}
+education_latest_data <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/Education_Datasets_Summary.xlsx", sheet = "Latest_Available_Data"))
+
+education_5YearsMean_data <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/Education_Datasets_Summary.xlsx", sheet = "Past_5_Years_Mean"))
+
+```
+
+
+
+Health
+```{r}
+health_latest_data <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/HealthData_MergedNew.xlsx", sheet = "LatestAvailableData"))
+
+health_5YearsMean_data <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/HealthData_MergedNew.xlsx", sheet = "Past5YrsMean"))
+```
+
+
+
+
+Health Facilities - Data Type Conversion was made to some variables here 
+```{r}
+
+# Health Facilities
+
+health_fac_latest_data <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/LW_Datasets_Merged.xlsx", sheet = "Latest"))
+
+health_fac_5YearsMean_data <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/LW_Datasets_Merged.xlsx", sheet = "Mean"))
+
+
+
+# Transform the chr datatype into numeric
+
+# latest data
+
+health_fac_latest_data_convert <- health_fac_latest_data %>% 
+  select(-c('Country_Name', 'Country_Code')) %>% 
+  mutate_if(is.character, as.numeric)
+
+glimpse(health_fac_latest_data_convert)
+
+health_fac_latest_data <- cbind(health_fac_latest_data[,c('Country_Name', 'Country_Code')], health_fac_latest_data_convert)
+
+
+glimpse(health_fac_latest_data)
+
+# 5 years mean
+
+health_fac_5YearsMean_data_convert <- health_fac_5YearsMean_data %>% 
+  select(-c('Country_Name', 'Country_Code')) %>% 
+  mutate_if(is.character, as.numeric)
+
+glimpse(health_fac_5YearsMean_data_convert)
+
+health_fac_5YearsMean_data <- cbind(health_fac_5YearsMean_data[,c('Country_Name', 'Country_Code')], health_fac_5YearsMean_data_convert)
+
+
+glimpse(health_fac_5YearsMean_data)
+
+```
+
+
+
+General Data
+```{r}
+general_data_latest <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/Ricky-Data-Summary.xlsx", sheet = "Latest"))
+general_data_5YearsMean_data <- as.data.frame(read_excel("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/Ricky-Data-Summary.xlsx", sheet = "5_Year_Mean"))
+```
+
+
+
+Covid Data
+```{r}
+covid_data <- read.csv("https://raw.githubusercontent.com/datasets/covid-19/master/data/countries-aggregated.csv")
+
+latest_covid <- filter(covid_data,Date == '2020-12-19') #Latest Available Data
+
+# view first 5 rows of covid data
+head(latest_covid)
+```
+
+
+
+
+# 3.Joining / Merging tables
+
+5 Year Mean Data
+```{r}
+
+### Combining Latest Covid Date with 5-Year Mean Data ###
+
+
+# 1. Left Join Education to the covid data
+
+mean_data_1 <- left_join(latest_covid, education_5YearsMean_data, by = c("Country" = "Country Name")) 
+
+# 2. Left join Health to 1.
+
+mean_data_2 <- left_join(mean_data_1, health_5YearsMean_data, by = c("Country" = "Country Name")) 
+
+
+# 3. Left join General Data to 2.
+
+mean_data_3 <- left_join(mean_data_2, general_data_5YearsMean_data, by = c("Country" = "Country Name")) 
+
+
+# 4. Left join General Data to 3.
+
+mean_data_4 <- left_join(mean_data_3, health_fac_5YearsMean_data, by = c("Country Code.x" = "Country_Code")) 
+
+
+# Drop repeated & Unnecessary Columns
+
+glimpse(mean_data_4)
+
+
+mean_data_dropped_redundant_cols <- mean_data_4 %>%  select(-c('Country Code.x', 'Country Code.y', 'Country_Name'))
+
+
+glimpse(mean_data_dropped_redundant_cols)
+
+
+
+# Check missing values of each variables (columns)
+
+mean_data_view_missing_data <- colSums(is.na(mean_data_dropped_redundant_cols) == TRUE)
+
+glimpse(mean_data_view_missing_data)
+
+```
+
+
+
+5 Year Latest Data (2019)
+```{r}
+
+### Combining Latest Covid Date with the latest Data ###
+
+
+# 1. Left Join Education to the covid data
+
+latest_data_1 <- left_join(latest_covid, education_latest_data, by = c("Country" = "Country Name")) 
+
+
+# 2. Left join Health to 1.
+
+latest_data_2 <- left_join(latest_data_1, health_latest_data, by = c("Country" = "Country Name")) 
+
+
+
+# 3. Left join General Data to 2.
+
+latest_data_3 <- left_join(latest_data_2, general_data_latest, by = c("Country" = "Country Name")) 
+
+
+
+# 4. Left join General Data to 3.
+
+latest_data_4 <- left_join(latest_data_3, health_fac_latest_data, by = c("Country Code.x" = "Country_Code")) 
+
+
+
+# Drop repeated & Unnecessary Columns
+
+glimpse(latest_data_4)
+
+
+latest_data_dropped_redundant_cols <- latest_data_4 %>%  select(-c('Country Code.x', 'Country Code.y', 'Country Code', 'Country_Name'))
+
+
+glimpse(latest_data_dropped_redundant_cols)
+
+
+
+# Check missing values of each variables (columns)
+
+latest_data_view_missing_data <- colSums(is.na(latest_data_dropped_redundant_cols) == TRUE)
+
+glimpse(latest_data_view_missing_data)
+```
+
+
+
+
+# Findings: There are more data for LATEST DATASET, hence the analysis will be done using latest dataset
+```{r}
+
+
+glimpse(latest_data_dropped_redundant_cols)
+
+analysis_dataset <- latest_data_dropped_redundant_cols
+```
+
+
+# 4. Save Dataset
+```{r}
+
+### Save ###
+
+library("writexl")
+write_xlsx(analysis_dataset,"consolidate_dataset.xlsx")
+
+```
+
+
+
+
+# Follow Up - 2nd round of cleaning
+
+
+
+
+# Merge latest dataset
+```{r}
+
+latest_data_combined <- merge(x = education_latest_data, y = health_latest_data, by = "Country Code")
+
+latest_data_combined2 <- merge(x = latest_data_combined, y = general_data_latest, by = "Country Code")
+
+latest_data_combined3 <- merge(x = latest_data_combined2, y = health_fac_latest_data, by.x = "Country Code", by.y = "Country_Code")
+
+glimpse(latest_data_combined3)
+```
+
+
+# Drop redundant data
+```{r}
+
+
+latest_data_combined4 <- latest_data_combined3 %>% select(-c("Country Name.x", "Country Name.y", "Country_Name", "Country Name"))
+
+names(latest_data_combined4)[names(latest_data_combined4) == 'Country Code'] <- "Country_Code"
+
+
+glimpse(latest_data_combined4)
+```
+
+
+
+# Read continents data 
+```{r}
+
+continent <- read.csv("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets//Cleaning/continents2.csv")
+
+head(continent)
+
+
+continent2 <- continent %>% select(c('ï..name', alpha_3, region, sub_region, intermediate_region))
+ 
+ names(continent2)[names(continent2) == "ï..name"] <- "Country_Name"
+ names(continent2)[names(continent2) == "alpha_3"] <- "Country_Code"
+ names(continent2)[names(continent2) == "region"] <- "Region"
+ names(continent2)[names(continent2) == "sub_region"] <- "Sub_Region"
+ names(continent2)[names(continent2) == "intermediate_region"] <- "Intermediate_Region"
+
+
+
+glimpse(latest_covid)
+
+glimpse(continent2)
+
+```
+
+
+
+
+# Merge Continent and Covid Data
+```{r}
+
+glimpse(latest_covid)
+
+glimpse(continent2)
+
+DFCovid2 <- merge(x = continent2, y = latest_covid, by.x = "Country_Name", by.y = "Country",all.y = TRUE) # right join
+
+
+#remove date column
+DFCovid3 <- DFCovid2 %>% select(-c(Date))
+
+
+glimpse(DFCovid3)
+
+```
+
+
+# Join df with aggregated data and Manual Preprocessing for US country name
+```{r}
+
+# import samuel data
+agg_data <- read.csv("C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/Cleaning/consolidate_dataset_edited_FilteredCSV3.csv")
+
+agg_data2 <- agg_data %>% select(c(code,ConfirmedPerPopulation...,RecoveryRate...,DeathRate...))
+
+glimpse(agg_data2)
+
+names(agg_data2)[names(agg_data2) == "code"] <- "Country_Code"
+names(agg_data2)[names(agg_data2) == "ConfirmedPerPopulation..."] <- "ConfirmedPerPpopulation"
+names(agg_data2)[names(agg_data2) == "RecoveryRate..."] <- "RecoveryRate"
+names(agg_data2)[names(agg_data2) == "DeathRate..."] <- "DeathRate"
+
+
+glimpse(agg_data2)
+
+
+Covid_Rate_Data <- merge(x = DFCovid3, y = agg_data2, by.x = "Country_Code", by.y = "Country_Code",all.x = TRUE)
+
+# Change the Country_Name , US to United States
+
+Covid_Rate_Data[193, 2] <- 'United States'
+Covid_Rate_Data[193, 1] <- 'USA'
+
+head(Covid_Rate_Data)
+```
+
+
+
+# Combine the latest data with covid data and write data into csv
+```{r}
+
+glimpse(Covid_Rate_Data)
+
+latest_data <- merge(x = Covid_Rate_Data, y = latest_data_combined4, by.x = "Country_Code", by.y = "Country_Code",all.x = TRUE)
+
+
+
+latest_data_ver2 <- unique(latest_data)
+
+
+# check how many repeated countries
+
+unique_country <- unique(latest_data$Country_Code)
+dim(unique_country)
+
+unique_country2 <- unique(latest_data$Country_Name)
+dim(unique_country2)
+
+
+write.csv(latest_data_ver2,"C:/Users/uwxl003/Downloads/PoDS - Consolidate Datasets/PoDS - Consolidate Datasets/Cleaning/latest_cleansed_data.csv", row.names = FALSE)
+```
