@@ -1,10 +1,9 @@
-# COVID-19 Dashboard - Social Determinants of Public Health
-
-How are the COVID-19 cases related to the social determinants of public health?  
-Check the Shiny App at https://rickysoo.shinyapps.io/wqd7001/
-
-Brought to you by
-- Lim Lee Wen (17081783)
-- Lim Wen Yan (S2019787)
-- Samuel Wong Ing Shiing (S2018282)
-- Soo Chee Kiong (17083991)
+Thi is the R Web Apps Using Shiny.
+Project Title: A comparative analysis of Chinese and Western responses to COVID-19
+Group Number: 12, Group Name : The Magic
+List the group members:
+Zhang Ziteng (S2149768)
+Zhang Jingrong (s2111224)
+JIE YINGGANG （s2113868)
+Siti Khadijah Mohamed Afni (S2016903)
+Haritharan A/L Murli Haran ( S2157199)
